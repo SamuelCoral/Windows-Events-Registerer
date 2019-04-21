@@ -10,85 +10,137 @@ namespace ApplicationsListenner
     {
         static void Main(string[] args)
         {
-            var pasado = new Dictionary<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>>();
-            var presente = new Dictionary<string, KeyValuePair<string, DateTime>>();
+            var eventsRegistered = new Dictionary<
+                string,
+                Dictionary<
+                    DateTime,
+                    KeyValuePair<
+                        string,
+                        DateTime
+                    >
+                >
+            >();
 
-            bool correr = true;
+            var currentStates = new Dictionary<
+                string,
+                KeyValuePair<
+                    string,
+                    DateTime
+                >
+            >();
+
+
+            bool running = true;
+
             new Thread(() => {
                 Console.ReadKey(true);
-                correr = false;
+                running = false;
             }).Start();
 
-            DateTime ahora = DateTime.Now;
-            while(correr)
+            DateTime currentTime = DateTime.Now;
+            while(running)
             {
-                ahora = DateTime.Now;
-                List<Process> procesos = Process.GetProcesses().Where(
+                currentTime = DateTime.Now;
+                List<Process> processes = Process.GetProcesses().Where(
                     p => p.MainWindowHandle != IntPtr.Zero &&
                          p.ProcessName != "explorer"
                 ).ToList();
                 
-                // Contrastar el presente con el instante anterior
-                foreach(Process proceso in procesos)
+                foreach(Process process in processes)
                 {
-                    string nombre = proceso.ProcessName;
-                    string titulo = proceso.MainWindowTitle;
-                    var estadoActual = new KeyValuePair<string, DateTime>(titulo, ahora);
+                    string name = process.ProcessName;
+                    string title = process.MainWindowTitle;
+                    var currentState = new KeyValuePair<string, DateTime>(
+                        title,
+                        currentTime
+                    );
 
-                    // Si una aplicación inició
-                    if (!presente.ContainsKey(nombre)) presente[nombre] = estadoActual;
-                    // Si una aplicación cambió su barra de título
-                    else if (presente[nombre].Key != titulo)
+                    // An app stated
+                    if (!currentStates.ContainsKey(name))
+                        currentStates[name] = currentState;
+
+                    // An app changed its window title
+                    else if (currentStates[name].Key != title)
                     {
-                        if (!pasado.ContainsKey(nombre))
-                            pasado[nombre] = new Dictionary<DateTime, KeyValuePair<string, DateTime>>();
+                        if (!eventsRegistered.ContainsKey(name))
+                            eventsRegistered[name] = new Dictionary<
+                                DateTime,
+                                KeyValuePair<
+                                    string,
+                                    DateTime
+                                >
+                            >();
 
-                        pasado[nombre][presente[nombre].Value] =
-                            new KeyValuePair<string, DateTime>(presente[nombre].Key, ahora);
+                        eventsRegistered[name][currentStates[name].Value] =
+                            new KeyValuePair<string, DateTime>(
+                                currentStates[name].Key,
+                                currentTime
+                            );
 
-                        presente[nombre] = estadoActual;
+                        currentStates[name] = currentState;
                     }
                 }
 
-                // Contrastar el instante anterior con el pasado
-                foreach(KeyValuePair<string, KeyValuePair<string, DateTime>> ventana in presente)
+                foreach(KeyValuePair<string, KeyValuePair<string, DateTime>> window in currentStates)
                 {
-                    string nombre = ventana.Key;
-                    string titulo = ventana.Value.Key;
-                    // Si una aplicación se cerró
-                    if(!procesos.Any(p => p.ProcessName == nombre))
+                    string name = window.Key;
+                    string title = window.Value.Key;
+
+                    // An app was closed
+                    if(!processes.Any(p => p.ProcessName == name))
                     {
-                        if (!pasado.ContainsKey(nombre))
-                            pasado[nombre] = new Dictionary<DateTime, KeyValuePair<string, DateTime>>();
+                        if (!eventsRegistered.ContainsKey(name))
+                            eventsRegistered[name] = new Dictionary<
+                                DateTime,
+                                KeyValuePair<
+                                    string,
+                                    DateTime
+                                >
+                            >();
 
-                        pasado[nombre][presente[nombre].Value] =
-                            new KeyValuePair<string, DateTime>(presente[nombre].Key, ahora);
+                        eventsRegistered[name][currentStates[name].Value] =
+                            new KeyValuePair<string, DateTime>(
+                                currentStates[name].Key,
+                                currentTime
+                            );
 
-                        presente.Remove(nombre);
+                        currentStates.Remove(name);
                         break;
                     }
                 }
             }
 
-            // Cerrar la aplicación
-            foreach (KeyValuePair<string, KeyValuePair<string, DateTime>> ventana in presente)
+            // TODO: Present information somehow else
+            foreach (KeyValuePair<string, KeyValuePair<string, DateTime>> window in currentStates)
             {
-                string nombre = ventana.Key;
-                string titulo = ventana.Value.Key;
+                string name = window.Key;
+                string title = window.Value.Key;
                 
-                if (!pasado.ContainsKey(nombre))
-                    pasado[nombre] = new Dictionary<DateTime, KeyValuePair<string, DateTime>>();
+                if (!eventsRegistered.ContainsKey(name))
+                    eventsRegistered[name] = new Dictionary<
+                        DateTime,
+                        KeyValuePair<
+                            string,
+                            DateTime
+                        >
+                    >();
 
-                pasado[nombre][presente[nombre].Value] =
-                    new KeyValuePair<string, DateTime>(presente[nombre].Key, ahora);
+                eventsRegistered[name][currentStates[name].Value] =
+                    new KeyValuePair<string, DateTime>(
+                        currentStates[name].Key,
+                        currentTime
+                    );
             }
 
-            foreach (KeyValuePair<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>> programa in pasado)
+            foreach (KeyValuePair<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>> program in eventsRegistered)
             {
-                Console.WriteLine("--- " + programa.Key + " ---");
-                foreach(KeyValuePair<DateTime, KeyValuePair<string, DateTime>> registro in programa.Value)
+                Console.WriteLine("--- " + program.Key + " ---");
+                foreach(KeyValuePair<DateTime, KeyValuePair<string, DateTime>> register in program.Value)
                 {
-                    Console.WriteLine(registro.Key + " - " + registro.Value.Value + " ==> " + registro.Value.Key);
+                    Console.WriteLine(
+                        register.Key + " - " + register.Value.Value +
+                        " ==> " + register.Value.Key
+                    );
                 }
                 Console.WriteLine("\n");
             }
