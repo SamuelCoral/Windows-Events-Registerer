@@ -7,20 +7,46 @@ using System.IO;
 
 namespace ApplicationsListenner
 {
+    // Data types
+    using AppEvent = KeyValuePair<DateTime, KeyValuePair<string, DateTime>>;
+    using AppEvents = Dictionary<DateTime, KeyValuePair<string, DateTime>>;
+    using AppLog = KeyValuePair<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>>;
+    using GeneralLog = Dictionary<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>>;
+    using AppState = KeyValuePair<string, KeyValuePair<string, DateTime>>;
+    using AppsStates = Dictionary<string, KeyValuePair<string, DateTime>>;
+
     class Program
     {
-        public static void GenerateLog(Dictionary<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>> eventsRegistered)
-        {
+        public static void GenerateLog(
+            GeneralLog eventsRegistered,
+            AppsStates currentStates,
+            DateTime currentTime
+        ) {
+            foreach (AppState window in currentStates)
+            {
+                string name = window.Key;
+                string title = window.Value.Key;
+
+                if (!eventsRegistered.ContainsKey(name))
+                    eventsRegistered[name] = new AppEvents();
+
+                eventsRegistered[name][currentStates[name].Value] =
+                    new KeyValuePair<string, DateTime>(
+                        currentStates[name].Key,
+                        currentTime
+                    );
+            }
+
             // TODO: Present information somehow else
             StreamWriter log = new StreamWriter(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) +
-                "\\" + DateTime.Now.ToString("yyyy-MM-dd") + ".log"
+                "\\" + currentTime.ToString("yyyy-MM-dd") + ".log"
             );
 
-            foreach (KeyValuePair<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>> program in eventsRegistered)
+            foreach (AppLog program in eventsRegistered)
             {
                 log.WriteLine("--- " + program.Key + " ---");
-                foreach (KeyValuePair<DateTime, KeyValuePair<string, DateTime>> register in program.Value)
+                foreach (AppEvent register in program.Value)
                 {
                     log.WriteLine(
                         register.Key + " - " + register.Value.Value +
@@ -35,27 +61,12 @@ namespace ApplicationsListenner
 
         static void Main(string[] args)
         {
-            var eventsRegistered = new Dictionary<
-                string,
-                Dictionary<
-                    DateTime,
-                    KeyValuePair<
-                        string,
-                        DateTime
-                    >
-                >
-            >();
-
-            var currentStates = new Dictionary<
-                string,
-                KeyValuePair<
-                    string,
-                    DateTime
-                >
-            >();
+            GeneralLog eventsRegistered = new GeneralLog();
+            AppsStates currentStates = new AppsStates();
 
             DateTime currentTime;
             DateTime lastSave = DateTime.Now;
+
             while (true)
             {
                 Thread.Sleep(5000);
@@ -63,7 +74,7 @@ namespace ApplicationsListenner
                 if((currentTime - lastSave).TotalMinutes >= 1)
                 {
                     lastSave = currentTime;
-                    GenerateLog(eventsRegistered);
+                    GenerateLog(eventsRegistered, currentStates, currentTime);
                 }
 
                 List<Process> processes = Process.GetProcesses().Where(
@@ -88,13 +99,7 @@ namespace ApplicationsListenner
                     else if (currentStates[name].Key != title)
                     {
                         if (!eventsRegistered.ContainsKey(name))
-                            eventsRegistered[name] = new Dictionary<
-                                DateTime,
-                                KeyValuePair<
-                                    string,
-                                    DateTime
-                                >
-                            >();
+                            eventsRegistered[name] = new AppEvents();
 
                         eventsRegistered[name][currentStates[name].Value] =
                             new KeyValuePair<string, DateTime>(
@@ -106,7 +111,7 @@ namespace ApplicationsListenner
                     }
                 }
 
-                foreach(KeyValuePair<string, KeyValuePair<string, DateTime>> window in currentStates)
+                foreach(AppState window in currentStates)
                 {
                     string name = window.Key;
                     string title = window.Value.Key;
@@ -115,13 +120,7 @@ namespace ApplicationsListenner
                     if(!processes.Any(p => p.ProcessName == name))
                     {
                         if (!eventsRegistered.ContainsKey(name))
-                            eventsRegistered[name] = new Dictionary<
-                                DateTime,
-                                KeyValuePair<
-                                    string,
-                                    DateTime
-                                >
-                            >();
+                            eventsRegistered[name] = new AppEvents();
 
                         eventsRegistered[name][currentStates[name].Value] =
                             new KeyValuePair<string, DateTime>(
@@ -134,35 +133,6 @@ namespace ApplicationsListenner
                     }
                 }
             }
-
-            /* TODO: Applications which never mutaded the window title,
-             * were opened before openning this process and never closed
-             * before closing this process will be invisible to the logger.
-             * Assuming we could put this code when trying to close this
-             * process, so we can record them as well.
-             */
-            foreach (KeyValuePair<string, KeyValuePair<string, DateTime>> window in currentStates)
-            {
-                string name = window.Key;
-                string title = window.Value.Key;
-                
-                if (!eventsRegistered.ContainsKey(name))
-                    eventsRegistered[name] = new Dictionary<
-                        DateTime,
-                        KeyValuePair<
-                            string,
-                            DateTime
-                        >
-                    >();
-
-                eventsRegistered[name][currentStates[name].Value] =
-                    new KeyValuePair<string, DateTime>(
-                        currentStates[name].Key,
-                        currentTime
-                    );
-            }
-
-            GenerateLog(eventsRegistered);
         }
     }
 }
