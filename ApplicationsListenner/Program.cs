@@ -3,11 +3,36 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 using System.Threading;
+using System.IO;
 
 namespace ApplicationsListenner
 {
     class Program
     {
+        public static void GenerateLog(Dictionary<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>> eventsRegistered)
+        {
+            // TODO: Present information somehow else
+            StreamWriter log = new StreamWriter(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) +
+                "\\" + DateTime.Now.ToString("yyyy-MM-dd_hh-mm-ss") + ".log"
+            );
+
+            foreach (KeyValuePair<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>> program in eventsRegistered)
+            {
+                log.WriteLine("--- " + program.Key + " ---");
+                foreach (KeyValuePair<DateTime, KeyValuePair<string, DateTime>> register in program.Value)
+                {
+                    log.WriteLine(
+                        register.Key + " - " + register.Value.Value +
+                        " ==> " + register.Value.Key
+                    );
+                }
+                log.WriteLine("\n");
+            }
+
+            log.Close();
+        }
+
         static void Main(string[] args)
         {
             var eventsRegistered = new Dictionary<
@@ -29,18 +54,17 @@ namespace ApplicationsListenner
                 >
             >();
 
-
-            bool running = true;
-
-            new Thread(() => {
-                Console.ReadKey(true);
-                running = false;
-            }).Start();
-
-            DateTime currentTime = DateTime.Now;
-            while(running)
+            DateTime currentTime;
+            DateTime lastSave = DateTime.Now;
+            while (true)
             {
                 currentTime = DateTime.Now;
+                if((currentTime - lastSave).TotalMinutes >= 5)
+                {
+                    lastSave = currentTime;
+                    GenerateLog(eventsRegistered);
+                }
+
                 List<Process> processes = Process.GetProcesses().Where(
                     p => p.MainWindowHandle != IntPtr.Zero &&
                          p.ProcessName != "explorer"
@@ -110,7 +134,6 @@ namespace ApplicationsListenner
                 }
             }
 
-            // TODO: Present information somehow else
             foreach (KeyValuePair<string, KeyValuePair<string, DateTime>> window in currentStates)
             {
                 string name = window.Key;
@@ -131,21 +154,6 @@ namespace ApplicationsListenner
                         currentTime
                     );
             }
-
-            foreach (KeyValuePair<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>> program in eventsRegistered)
-            {
-                Console.WriteLine("--- " + program.Key + " ---");
-                foreach(KeyValuePair<DateTime, KeyValuePair<string, DateTime>> register in program.Value)
-                {
-                    Console.WriteLine(
-                        register.Key + " - " + register.Value.Value +
-                        " ==> " + register.Value.Key
-                    );
-                }
-                Console.WriteLine("\n");
-            }
-
-            Console.ReadKey(true);
         }
     }
 }
