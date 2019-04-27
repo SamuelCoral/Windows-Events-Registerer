@@ -14,7 +14,7 @@ namespace ApplicationsListenner
             // TODO: Present information somehow else
             StreamWriter log = new StreamWriter(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) +
-                "\\" + DateTime.Now.ToString("yyyy-MM-dd_hh-mm-ss") + ".log"
+                "\\" + DateTime.Now.ToString("yyyy-MM-dd") + ".log"
             );
 
             foreach (KeyValuePair<string, Dictionary<DateTime, KeyValuePair<string, DateTime>>> program in eventsRegistered)
@@ -58,8 +58,9 @@ namespace ApplicationsListenner
             DateTime lastSave = DateTime.Now;
             while (true)
             {
+                Thread.Sleep(5000);
                 currentTime = DateTime.Now;
-                if((currentTime - lastSave).TotalMinutes >= 5)
+                if((currentTime - lastSave).TotalMinutes >= 1)
                 {
                     lastSave = currentTime;
                     GenerateLog(eventsRegistered);
@@ -134,6 +135,12 @@ namespace ApplicationsListenner
                 }
             }
 
+            /* TODO: Applications which never mutaded the window title,
+             * were opened before openning this process and never closed
+             * before closing this process will be invisible to the logger.
+             * Assuming we could put this code when trying to close this
+             * process, so we can record them as well.
+             */
             foreach (KeyValuePair<string, KeyValuePair<string, DateTime>> window in currentStates)
             {
                 string name = window.Key;
@@ -154,6 +161,8 @@ namespace ApplicationsListenner
                         currentTime
                     );
             }
+
+            GenerateLog(eventsRegistered);
         }
     }
 }
