@@ -20,7 +20,8 @@ namespace ApplicationsListenner
         public static void GenerateLog(
             GeneralLog eventsRegistered,
             AppsStates currentStates,
-            DateTime currentTime
+            DateTime currentTime,
+            DateTime startTime
         ) {
             foreach (AppState window in currentStates)
             {
@@ -40,7 +41,7 @@ namespace ApplicationsListenner
             // TODO: Present information somehow else
             StreamWriter log = new StreamWriter(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) +
-                "\\" + currentTime.ToString("yyyy-MM-dd") + ".log"
+                "\\" + startTime.ToString("yyyy-MM-dd_HH-mm-ss") + ".log"
             );
 
             foreach (AppLog program in eventsRegistered)
@@ -65,7 +66,8 @@ namespace ApplicationsListenner
             AppsStates currentStates = new AppsStates();
 
             DateTime currentTime;
-            DateTime lastSave = DateTime.Now;
+            DateTime startTime, lastSave;
+            startTime = lastSave = DateTime.Now;
 
             while (true)
             {
@@ -74,7 +76,12 @@ namespace ApplicationsListenner
                 if((currentTime - lastSave).TotalMinutes >= 1)
                 {
                     lastSave = currentTime;
-                    GenerateLog(eventsRegistered, currentStates, currentTime);
+                    GenerateLog(
+                        eventsRegistered,
+                        currentStates,
+                        currentTime,
+                        startTime
+                    );
                 }
 
                 List<Process> processes = Process.GetProcesses().Where(
